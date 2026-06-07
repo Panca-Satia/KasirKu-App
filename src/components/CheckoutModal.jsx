@@ -53,19 +53,79 @@ export default function CheckoutModal({
     setCashAmount(amount.toString());
   };
 
-  // Simulate payment processing for card/qris
-  const handleSimulatePayment = () => {
+  // Simulate payment processing for card/qris and send to Laravel API
+  const handleSimulatePayment = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
+    try {
+      const response = await fetch('http://localhost:8000/api/transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          payment: total,
+          total: total,
+          cart: cartItems.map(item => ({
+            id: item.id,
+            qty: item.quantity
+          }))
+        })
+      });
+
+      const resData = await response.json();
+      if (!response.ok) {
+        throw new Error(resData.message || 'Gagal menyimpan transaksi ke server.');
+      }
+
+      setTransactionId(`TRX-${resData.data.transaction_id}`);
+      // Parse database date format if needed, otherwise use the string returned
+      setTransactionTime(resData.data.created_at);
       setPaymentSuccess(true);
-    }, 1500);
+    } catch (err) {
+      console.error(err);
+      alert(`Gagal memproses pembayaran: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const handleCompleteCashSale = () => {
+  const handleCompleteCashSale = async () => {
     const cash = parseFloat(cashAmount) || 0;
     if (cash < total) return;
-    setPaymentSuccess(true);
+    
+    setIsProcessing(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          payment: cash,
+          total: total,
+          cart: cartItems.map(item => ({
+            id: item.id,
+            qty: item.quantity
+          }))
+        })
+      });
+
+      const resData = await response.json();
+      if (!response.ok) {
+        throw new Error(resData.message || 'Gagal menyimpan transaksi ke server.');
+      }
+
+      setTransactionId(`TRX-${resData.data.transaction_id}`);
+      setTransactionTime(resData.data.created_at);
+      setPaymentSuccess(true);
+    } catch (err) {
+      console.error(err);
+      alert(`Gagal memproses transaksi: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleFinalize = () => {

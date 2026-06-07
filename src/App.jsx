@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { productsData } from './data/products';
 import Header from './components/Header';
 import ProductCatalog from './components/ProductCatalog';
 import Cart from './components/Cart';
@@ -8,7 +7,9 @@ import HistoryDrawer from './components/HistoryDrawer';
 
 export default function App() {
   // Application States
-  const [products, setProducts] = useState(productsData);
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [cart, setCart] = useState([]);
   const [transactions, setTransactions] = useState([]);
   
@@ -22,13 +23,33 @@ export default function App() {
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
 
-  // Load theme preference from localStorage on init
+  // Fetch products from Laravel API
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('http://localhost:8000/api/products');
+      if (!response.ok) {
+        throw new Error('Gagal mengambil data produk dari server API.');
+      }
+      const data = await response.json();
+      setProducts(data);
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load theme preference from localStorage and fetch products on init
   useEffect(() => {
     const savedTheme = localStorage.getItem('kasirku-theme');
     if (savedTheme === 'dark') {
       setDarkMode(true);
       document.body.classList.add('dark-mode');
     }
+    fetchProducts();
   }, []);
 
   const toggleDarkMode = () => {
@@ -165,6 +186,8 @@ export default function App() {
     // Reset voucher configurations
     setPromoCode('');
     setDiscountPercentage(0);
+    // Refresh products stock count from Laravel database
+    fetchProducts();
   };
 
   // Clear Session Transactions History
@@ -189,28 +212,41 @@ export default function App() {
       />
 
       {/* Main Grid View */}
-      <main style={{ display: 'contents' }}>
-        {/* Left Side: Product Catalog */}
-        <ProductCatalog 
-          products={products} 
-          onAddToCart={handleAddToCart} 
-        />
+      {isLoading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', width: '100%', gap: '1.5rem', color: 'var(--text-color)' }}>
+          <div className="animate-spin" style={{ fontSize: '2.5rem', animation: 'spin 1s linear infinite' }}>🔄</div>
+          <p style={{ fontWeight: '600', fontSize: '1.1rem' }}>Memuat data produk dari server API...</p>
+        </div>
+      ) : error ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', width: '100%', gap: '1.5rem', color: 'var(--danger-color)', padding: '2rem', textAlign: 'center' }}>
+          <div style={{ fontSize: '3rem' }}>⚠️</div>
+          <p style={{ fontWeight: '600', fontSize: '1.1rem', maxWidth: '400px' }}>Gagal menghubungkan ke server API: {error}</p>
+          <button className="btn-primary" onClick={fetchProducts} style={{ padding: '0.75rem 2rem' }}>Coba Hubungkan Kembali</button>
+        </div>
+      ) : (
+        <main style={{ display: 'contents' }}>
+          {/* Left Side: Product Catalog */}
+          <ProductCatalog 
+            products={products} 
+            onAddToCart={handleAddToCart} 
+          />
 
-        {/* Right Side: Cart Summary */}
-        <Cart 
-          cartItems={cart}
-          onUpdateQty={handleUpdateQty}
-          onRemoveItem={handleRemoveItem}
-          onClearCart={handleClearCart}
-          onCheckout={handleCheckout}
-          promoCode={promoCode}
-          setPromoCode={setPromoCode}
-          discountPercentage={discountPercentage}
-          setDiscountPercentage={setDiscountPercentage}
-          paymentMethod={paymentMethod}
-          setPaymentMethod={setPaymentMethod}
-        />
-      </main>
+          {/* Right Side: Cart Summary */}
+          <Cart 
+            cartItems={cart}
+            onUpdateQty={handleUpdateQty}
+            onRemoveItem={handleRemoveItem}
+            onClearCart={handleClearCart}
+            onCheckout={handleCheckout}
+            promoCode={promoCode}
+            setPromoCode={setPromoCode}
+            discountPercentage={discountPercentage}
+            setDiscountPercentage={setDiscountPercentage}
+            paymentMethod={paymentMethod}
+            setPaymentMethod={setPaymentMethod}
+          />
+        </main>
+      )}
 
       {/* Pop-up Modals and Drawers */}
       <CheckoutModal 

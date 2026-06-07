@@ -5,12 +5,11 @@ export default function ProductCatalog({ products, onAddToCart }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('semua');
 
-  const categories = [
-    { id: 'semua', name: 'Semua Menu' },
-    { id: 'makanan', name: 'Makanan' },
-    { id: 'minuman', name: 'Minuman' },
-    { id: 'cemilan', name: 'Cemilan' }
-  ];
+  const uniqueCategories = ['semua', ...new Set(products.map(p => p.category))];
+  const categories = uniqueCategories.map(cat => ({
+    id: cat,
+    name: cat === 'semua' ? 'Semua Menu' : cat
+  }));
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
